@@ -58,7 +58,6 @@ use DBI;
 my $location_file	= "test.txt";			# full path to file to send to bluetooth phone
 my $location_logfile	= "/dev/tty12";			# location of log file
 
-my $debug		= 1;				# enable/disable debugging
 
 
 # database configuration
@@ -77,6 +76,10 @@ my $app_hcitool		= "/usr/bin/hcitool";		# hcitool for scanning for wifi
 my $app_obexftp		= "/usr/bin/obexftp";		# tool for sending files to phone
 my $app_sdptool		= "/usr/bin/sdptool";		# tool for fetching capabilities from phone
 
+
+# debug/development overrides
+my $debug		= 1;				# enable/disable debugging
+my $debug_dev_phone	= "00:17:4B:51:78:6C";		# phones to repeateadly send files. (overiding 1 send limit)
 
 
 # pre-delare some key variables
@@ -432,7 +435,7 @@ foreach my $bt_phone_mac (@bt_phones)
 	$sth->execute();
 	$sth->fetchrow_array();
 
-	if ($sth->rows == 0)
+	if ($sth->rows == 0 || $bt_phone_mac eq $debug_dev_phone)
 	{
 		# TODO: should we explicity trying to send new files to devices that refused
 		# 	or ignored them in the past?
