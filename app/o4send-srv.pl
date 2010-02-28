@@ -13,6 +13,9 @@
 #	By default, o4send will only ever send a file once, regardless whether the phone
 #	accepts it or not, that way if a user refuses, they won't keep getting nagged.
 #
+#	It is possible to configure it to send messages to a particular phone multiple times
+#	though for testing purposes, by defining an exception.
+#
 #
 # 	Copyright (C) 2010 Amberdms Ltd
 #
@@ -53,16 +56,31 @@ use DBI;
 
 # configuration
 my $location_file	= "test.txt";			# full path to file to send to bluetooth phone
-my $location_csv	= "db/";			# location to store CSV database of MAC addresses
 my $location_logfile	= "/dev/tty12";			# location of log file
 
 my $debug		= 1;				# enable/disable debugging
+
+
+# database configuration
+my $db_type		= "mysql";			# either "mysql" or "csv"
+my $db_log		= 1;				# set to 1 to enable logging into the database as well as the log file.
+
+my $db_mysql_db		= "o4send";			# mysql database name
+my $db_mysql_user	= "root";			# mysql database user
+my $db_mysql_pwd	= "";				# mysql database password
+
+my $location_csv	= "db/";			# location to store CSV database of MAC addresses (if CSV database is enabled)
+
 
 # application paths
 my $app_hcitool		= "/usr/bin/hcitool";		# hcitool for scanning for wifi
 my $app_obexftp		= "/usr/bin/obexftp";		# tool for sending files to phone
 my $app_sdptool		= "/usr/bin/sdptool";		# tool for fetching capabilities from phone
 
+
+
+# pre-delare some key variables
+my $dbh;
 
 
 
@@ -303,12 +321,18 @@ sub log_add($$)
 		}
 	}
 
-	# if set, print copy of message to log file
+	# if enabled, print copy of message to log file
 	if ($location_logfile ne "")
 	{
 		open(LOG,">>$location_logfile") || print "Warning: Unable to write to log file!\n";
 		print LOG "[$log_category] $log_entry\n";
 		close(LOG);
+	}
+
+	# if enabled, record log message in database
+	if ($db_log && $dbh)
+	{
+		$dbh->do("INSERT INTO app_log (timestamp, category, message) VALUES (". time() .", '$log_category', '$log_entry')");
 	}
 
 	print "[$log_category] $log_entry\n";
@@ -356,25 +380,39 @@ sub file_checksum($)
 #########################################################################
 
 
+
+
+# 1. Connect to the phone database (and seed the DB if needed)
+if ($db_type eq "mysql")
+{
+	# Use MySQL database
+	# 'DBI:mysql:databasename', 'username', 'password'
+	$dbh = DBI->connect("DBI:mysql:$db_mysql_db", $db_mysql_user, $db_mysql_pwd) || die("Unable to connect to MySQL database in $location_csv");
+}
+else
+{
+	# Use CSV files for database
+	mkdir ($location_csv);
+	$dbh = DBI->connect("DBI:CSV:f_dir=$location_csv") || die("Unable to connect to CSV database in $location_csv");
+
+	# if the CSV file doesn't exist, we need to create the table structure
+	if (! -e "$location_csv/phones_seen")
+	{
+		$dbh->do("CREATE TABLE phones_seen (timestamp INTEGER, bt_phone_mac CHAR(17), transfer_filemd5sum CHAR(32), transfer_status CHAR(7))");
+		$dbh->do("CREATE TABLE app_log (timestamp INTEGER, category CHAR(20), message CHAR(255)");
+	}
+}
+
+
 # start of application
 log_add("info", "Started openbluedistribute_srv");
 
 
-# 1. Checksum the file.
+
+# 2. Checksum the file.
 my $checksum = file_checksum($location_file);
 
 
-
-# 2. Connect to the phone database (and seed the DB if needed)
-
-mkdir ($location_csv);
-my $dbh = DBI->connect("DBI:CSV:f_dir=$location_csv") || die("Unable to connect to CSV database in $location_csv");
-
-# if the CSV file doesn't exist, we need to create the table structure
-if (! -e "$location_csv/phones_seen")
-{
-	$dbh->do("CREATE TABLE phones_seen (timestamp INTEGER, bt_phone_mac CHAR(17), transfer_filemd5sum CHAR(32), transfer_status CHAR(7))");
-}
 
 
 
@@ -420,11 +458,13 @@ foreach my $bt_phone_mac (@bt_phones)
 }
 
 
-# disconnect from DB
-$dbh->disconnect();
 
 # end of application loop
 log_add("info", "Closing down openbluedistribute_srv");
+
+# disconnect from DB
+$dbh->disconnect();
+
 
 exit 0;
 
