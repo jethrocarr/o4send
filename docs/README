@@ -1,0 +1,58 @@
+	
+O4SEND
+
+OPP Bluetooth File Distribution Application
+(c) Copyright 2011 Amberdms Ltd
+
+
+
+OVERVIEW
+
+o4send is an utility developed by Amberdms for use by a company wanting to
+distribute files to a number of cellphones (in particular, symbian) as a
+form of promotion.
+
+OPP is of limited use - a number of the newer smartphones, notably Android
+and iPhone don't currently implement OPP, but a lot of the Nokia and other
+Symbian based devices will work with it.
+
+
+
+TECHNICAL
+
+If the phone does correctly support OPP, o4send will send them a file which
+the user will be prompted to recieve and can then accept/deny.
+
+o4send will distribute the file to the user if requested and then record in
+the database either way against the MAC, so that the user is not prompted again.
+
+The database can either be an on disk CSV file or a MySQL database - typically for
+a small run, the CSV will be fine. For more complex deployments, the MySQL database
+can allow multiple devices to run concurrent o4send instances and better scalability.
+
+
+EXECUTION
+
+Adjust the configuration inside the app/o4send-srv.pl file - there are options
+for testing/debugging as well as DB configuration.
+
+Once completed, execute with:
+. app/o4send-srv.pl
+
+Output will be placed into the configured directory and the configured file will be
+served up. Note that HTML tends to work best on most phones for sending messages or
+links to download additional files or images.
+
+
+
+LEGAL
+
+This application is licensed under the GNU GPL version 3, a copy of which
+has been included with this application.
+
+Note that sending unsolicited messages to bluetooth cellphones may not be
+permitted under your country/region's laws, Amberdms is not responsible for
+*how* this tool is used, we are providing to the community as something that
+might be interesting only.
+
+
